@@ -54,14 +54,13 @@ public class GameViewActivity extends AppCompatActivity implements View.OnClickL
         public void onClick(View view)
         {
             int bid=view.getId();
+            //Toast toast = Toast.makeText(getApplicationContext(), String.valueOf(bid), Toast.LENGTH_SHORT);
+            //toast.setGravity(Gravity.CENTER_VERTICAL, 0, 0);
+            //toast.show();
 
-                Toast toast = Toast.makeText(getApplicationContext(), String.valueOf(bid), Toast.LENGTH_SHORT);
-                toast.setGravity(Gravity.CENTER_VERTICAL, 0, 0);
-                toast.show();
-
-                Button button1, button2;
-                int wr=-1;
-                int wc=-1;
+            Button button1, button2;
+            int wr=-1;
+            int wc=-1;
 
             switch (bid) {
                 case R.id.b00:
@@ -104,11 +103,13 @@ public class GameViewActivity extends AppCompatActivity implements View.OnClickL
 
             }
 
-            if (wr>-1 ||wc>-1) {
+            if (wr>-1 && wc>-1) {
                 if (isadjacent(wr, wc, npg.br, npg.bc)) {
                     button1 = buttons[wr][wc];
                     button2 = buttons[npg.br][npg.bc];
-                    int suffix=wr*npg.SIZE+wc;
+                    //int suffix=wr*npg.SIZE+wc;
+                    int suffix=npg.gamestate[wr][wc];
+
                     String mDrawableName = "pieces_"+suffix;
                     int imageResource = getResources().getIdentifier(mDrawableName , "drawable", getPackageName());
                     Drawable pic=getResources().getDrawable(imageResource);
@@ -132,64 +133,4 @@ public class GameViewActivity extends AppCompatActivity implements View.OnClickL
 
     }
 
-    /*
-    public void testmove(View v) {
-        // default method for handling onClick Events..
-        switch (v.getId()) {
-
-            case R.id.b20:
-
-               // do your code
-                Button from=(Button)findViewById(R.id.b20);
-                Button to=(Button)findViewById(R.id.b21);
-
-                int start_x; //=from.getLeft();
-                int start_y; //=from.getTop();
-
-                int end_x;//=to.getLeft();
-                int end_y;//=to.getTop();
-
-                int[] slocation = new int[2];
-                //from.getLocationInWindow(slocation);
-                from.getLocationOnScreen(slocation);
-                start_x=slocation[0];
-                start_y=slocation[1];
-
-                int[] elocation = new int[2];
-                //to.getLocationInWindow(elocation);
-                to.getLocationOnScreen(elocation);
-                end_x=elocation[0];
-                end_y=elocation[1];
-
-                TranslateAnimation animation = new TranslateAnimation(start_x, start_y, end_x, end_y);
-                animation.setDuration(1000); // duartion in ms
-                animation.setFillAfter(false);
-                from.startAnimation(animation);
-
-
-                Context context = getApplicationContext();
-                CharSequence text = "From: "+start_x+", "+start_y+ " to " +end_x+", " +end_y;
-                int duration = Toast.LENGTH_SHORT;
-
-                Toast toast = Toast.makeText(context, text, duration);
-                toast.setGravity(Gravity.CENTER_VERTICAL, 0, 0);
-
-                toast.show();
-
-                break;
-
-            case R.id.b21:
-                // do your code
-                break;
-
-
-
-            default:
-                break;
-        }
-
-
-
-    }
-    */
 }
