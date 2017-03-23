@@ -5,23 +5,30 @@ package com.example.zhangs.eightpuzzle;
  */
 
 public class NPuzzleGame {
-    int [][]gamestate =new int[3][3];
-
-    int br=0, bc=0;
 
     int SIZE=3;
 
-    public NPuzzleGame()
+    int [][]gamestate =new int[SIZE][SIZE];
+
+    int br=0, bc=0;
+
+    public void reset()
     {
         for(int row=0; row<SIZE; row++)
             for(int col=0; col<SIZE; col++)
             {
-                gamestate[row][col]=row*3+col;
+                gamestate[row][col]=row*SIZE+col;
 
             }
         br=0;
         bc=0;
 
+
+    }
+
+    public NPuzzleGame()
+    {
+        reset();
     }
 
 
