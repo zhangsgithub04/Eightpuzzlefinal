@@ -3,9 +3,12 @@ package com.example.zhangs.eightpuzzle;
 import android.content.Context;
 import android.graphics.drawable.Drawable;
 import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.GestureDetector;
 import android.view.Gravity;
 import android.view.MotionEvent;
@@ -16,7 +19,7 @@ import android.widget.Toast;
 
 import static android.R.attr.duration;
 
-public class GameViewActivity extends AppCompatActivity implements View.OnClickListener, GestureDetector.OnGestureListener {
+public class GameViewActivity extends AppCompatActivity implements View.OnClickListener, GestureDetector.OnGestureListener, SensorEventListener {
 
     NPuzzleGame npg = new NPuzzleGame();
     Button[][] buttons = new Button[3][3];
@@ -29,8 +32,10 @@ public class GameViewActivity extends AppCompatActivity implements View.OnClickL
 
     // The following are used for the shake detection
     private SensorManager mSensorManager;
-    private Sensor mAccelerometer;
     private ShakeDetector mShakeDetector;
+    private Sensor mAccelerometer;
+    private Sensor magnetometer;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -38,10 +43,10 @@ public class GameViewActivity extends AppCompatActivity implements View.OnClickL
 
 
         setContentView(R.layout.activity_game_view);
-
         //after the view has been set!
+        /*
         Button b00=(Button)findViewById(R.id.b00);
-/*
+
         b00.setBackgroundResource(R.drawable.pieces_8);
 
         //String uri="@drawable/pieces_"+"2";
@@ -68,30 +73,37 @@ public class GameViewActivity extends AppCompatActivity implements View.OnClickL
 
         // ShakeDetector initialization
         mSensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
+
+        magnetometer = mSensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
+
+        initListeners();
+
         mAccelerometer = mSensorManager
                 .getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
         mShakeDetector = new ShakeDetector();
         mShakeDetector.setOnShakeListener(new ShakeDetector.OnShakeListener() {
 
+
+
             @Override
             public void onShake(int count) {
-				/*
-				 * The following method, "handleShakeEvent(count):" is a stub //
-				 * method you would use to setup whatever you want done once the
+				/* whatever you want done once the
 				 * device has been shook.
 				 */
+
                 switch (count)
                 {
 
                     case 1:
-                    npg.reset();
-                    redraw();
+                        npg.reset();
+                        redraw();
                         break;
-                    case 2:
 
-                    //npg.randomize();
-                    //redraw();
-                    break;
+                    case 2:
+                        npg.randomize(20);
+                        redraw();
+                        break;
+
                     default:
                         npg.reset();
                         redraw();
@@ -103,16 +115,335 @@ public class GameViewActivity extends AppCompatActivity implements View.OnClickL
 
     }
 
+
+    public void initListeners()
+    {
+        mSensorManager.registerListener(this, mAccelerometer, SensorManager.SENSOR_DELAY_FASTEST);
+        mSensorManager.registerListener(this, magnetometer, SensorManager.SENSOR_DELAY_FASTEST);
+    }
+
+    @Override
+    public void onDestroy()
+    {
+        mSensorManager.unregisterListener(this);
+        super.onDestroy();
+    }
+
+    @Override
+    public void onBackPressed()
+    {
+        mSensorManager.unregisterListener(this);
+        super.onBackPressed();
+    }
+
+
+
+    float[] inclineGravity = new float[3];
+    float[] mGravity;
+    float[] mGeomagnetic;
+    float orientation[] = new float[3];
+    float pitch;
+    float roll;
+
+    @Override
+    public void onSensorChanged(SensorEvent event) {
+        //If type is accelerometer only assign values to global property mGravity
+        if (event.sensor.getType() == Sensor.TYPE_ACCELEROMETER)
+        {
+            mGravity = event.values;
+        }
+        else if (event.sensor.getType() == Sensor.TYPE_MAGNETIC_FIELD)
+        {
+            mGeomagnetic = event.values;
+
+            if (isTiltDownward())
+            {
+                goUp(null);
+                Log.d("test", "downwards");
+            }
+            else if (isTiltUpward())
+            {
+                goDown(null);
+                Log.d("test", "upwards");
+            }
+            else if (isTiltLeftward())
+            {
+                goRight(null);
+                Log.d("test", "downwards");
+            }
+
+            else if (isTiltRightward())
+            {
+                goLeft(null);
+                Log.d("test", "downwards");
+            }
+        }
+
+    }
+
+    @Override
+    public void onAccuracyChanged(Sensor sensor, int accuracy) {
+        // TODO Auto-generated method stub
+
+    }
+
+    public boolean isTiltUpward()
+    {
+        if (mGravity != null && mGeomagnetic != null)
+        {
+            float R[] = new float[9];
+            float I[] = new float[9];
+
+            boolean success = SensorManager.getRotationMatrix(R, I, mGravity, mGeomagnetic);
+
+            if (success)
+            {
+                float orientation[] = new float[3];
+                SensorManager.getOrientation(R, orientation);
+
+                /*
+                * If the roll is positive, you're in reverse landscape (landscape right), and if the roll is negative you're in landscape (landscape left)
+                *
+                * Similarly, you can use the pitch to differentiate between portrait and reverse portrait.
+                * If the pitch is positive, you're in reverse portrait, and if the pitch is negative you're in portrait.
+                *
+                * orientation -> azimut, pitch and roll
+                *
+                *
+                */
+
+                pitch = orientation[1];
+                roll = orientation[2];
+
+                inclineGravity = mGravity.clone();
+
+                double norm_Of_g = Math.sqrt(inclineGravity[0] * inclineGravity[0] + inclineGravity[1] * inclineGravity[1] + inclineGravity[2] * inclineGravity[2]);
+
+                // Normalize the accelerometer vector
+                inclineGravity[0] = (float) (inclineGravity[0] / norm_Of_g);
+                inclineGravity[1] = (float) (inclineGravity[1] / norm_Of_g);
+                inclineGravity[2] = (float) (inclineGravity[2] / norm_Of_g);
+
+                //Checks if device is flat on ground or not
+                int inclination = (int) Math.round(Math.toDegrees(Math.acos(inclineGravity[1])));
+
+                /*
+                * Float obj1 = new Float("10.2");
+                * Float obj2 = new Float("10.20");
+                * int retval = obj1.compareTo(obj2);
+                *
+                * if(retval > 0) {
+                * System.out.println("obj1 is greater than obj2");
+                * }
+                * else if(retval < 0) {
+                * System.out.println("obj1 is less than obj2");
+                * }
+                * else {
+                * System.out.println("obj1 is equal to obj2");
+                * }
+                */
+                Float objPitch = new Float(pitch);
+                Float objZero = new Float(0.0);
+                Float objZeroPointTwo = new Float(0.2);
+                Float objZeroPointTwoNegative = new Float(-0.2);
+
+                int objPitchZeroResult = objPitch.compareTo(objZero);
+                int objPitchZeroPointTwoResult = objZeroPointTwo.compareTo(objPitch);
+                int objPitchZeroPointTwoNegativeResult = objPitch.compareTo(objZeroPointTwoNegative);
+
+                //if (roll < 0 && ((objPitchZeroResult > 0 && objPitchZeroPointTwoResult > 0)
+                //        || (objPitchZeroResult < 0 && objPitchZeroPointTwoNegativeResult > 0)) && (inclination > 30 && inclination < 40))
+
+                if (inclination > 30 && inclination < 35)
+                {
+                    return true;
+                }
+                else
+                {
+                    return false;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    public boolean isTiltDownward()
+    {
+        if (mGravity != null && mGeomagnetic != null)
+        {
+            float R[] = new float[9];
+            float I[] = new float[9];
+
+            boolean success = SensorManager.getRotationMatrix(R, I, mGravity, mGeomagnetic);
+
+            if (success)
+            {
+                float orientation[] = new float[3];
+                SensorManager.getOrientation(R, orientation);
+
+                pitch = orientation[1];
+                roll = orientation[2];
+
+                inclineGravity = mGravity.clone();
+
+                double norm_Of_g = Math.sqrt(inclineGravity[0] * inclineGravity[0] + inclineGravity[1] * inclineGravity[1] + inclineGravity[2] * inclineGravity[2]);
+
+                // Normalize the accelerometer vector
+                inclineGravity[0] = (float) (inclineGravity[0] / norm_Of_g);
+                inclineGravity[1] = (float) (inclineGravity[1] / norm_Of_g);
+                inclineGravity[2] = (float) (inclineGravity[2] / norm_Of_g);
+
+                //Checks if device is flat on groud or not
+                int inclination = (int) Math.round(Math.toDegrees(Math.acos(inclineGravity[1])));
+
+                Float objPitch = new Float(pitch);
+                Float objZero = new Float(0.0);
+                Float objZeroPointTwo = new Float(0.2);
+                Float objZeroPointTwoNegative = new Float(-0.2);
+
+                int objPitchZeroResult = objPitch.compareTo(objZero);
+                int objPitchZeroPointTwoResult = objZeroPointTwo.compareTo(objPitch);
+                int objPitchZeroPointTwoNegativeResult = objPitch.compareTo(objZeroPointTwoNegative);
+
+                //if (roll < 0 && ((objPitchZeroResult > 0 && objPitchZeroPointTwoResult > 0)
+                //        || (objPitchZeroResult < 0 && objPitchZeroPointTwoNegativeResult > 0)) && (inclination > 140 && inclination < 160))
+                 if   (inclination > 145 && inclination < 160)
+                {
+                    return true;
+                }
+                else
+                {
+                    return false;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    public boolean isTiltLeftward()
+    {
+        if (mGravity != null && mGeomagnetic != null)
+        {
+            float R[] = new float[9];
+            float I[] = new float[9];
+
+            boolean success = SensorManager.getRotationMatrix(R, I, mGravity, mGeomagnetic);
+
+            if (success)
+            {
+                float orientation[] = new float[3];
+                SensorManager.getOrientation(R, orientation);
+
+                pitch = orientation[1];
+                roll = orientation[2];
+
+                inclineGravity = mGravity.clone();
+
+                double norm_Of_g = Math.sqrt(inclineGravity[0] * inclineGravity[0] + inclineGravity[1] * inclineGravity[1] + inclineGravity[2] * inclineGravity[2]);
+
+                // Normalize the accelerometer vector
+                inclineGravity[0] = (float) (inclineGravity[0] / norm_Of_g);
+                inclineGravity[1] = (float) (inclineGravity[1] / norm_Of_g);
+                inclineGravity[2] = (float) (inclineGravity[2] / norm_Of_g);
+
+                //Checks if device is flat on groud or not
+                int inclination = (int) Math.round(Math.toDegrees(Math.acos(inclineGravity[2])));
+
+                Float objPitch = new Float(pitch);
+                Float objZero = new Float(0.0);
+                Float objZeroPointTwo = new Float(0.2);
+                Float objZeroPointTwoNegative = new Float(-0.2);
+
+                int objPitchZeroResult = objPitch.compareTo(objZero);
+                int objPitchZeroPointTwoResult = objZeroPointTwo.compareTo(objPitch);
+                int objPitchZeroPointTwoNegativeResult = objPitch.compareTo(objZeroPointTwoNegative);
+
+                //if (roll < 0 && ((objPitchZeroResult > 0 && objPitchZeroPointTwoResult > 0)
+                //        || (objPitchZeroResult < 0 && objPitchZeroPointTwoNegativeResult > 0)) && (inclination > 140 && inclination < 160))
+                if   (inclination > 145 && inclination < 160)
+                {
+                    return true;
+                }
+                else
+                {
+                    return false;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    public boolean isTiltRightward()
+    {
+        if (mGravity != null && mGeomagnetic != null)
+        {
+            float R[] = new float[9];
+            float I[] = new float[9];
+
+            boolean success = SensorManager.getRotationMatrix(R, I, mGravity, mGeomagnetic);
+
+            if (success)
+            {
+                float orientation[] = new float[3];
+                SensorManager.getOrientation(R, orientation);
+
+                pitch = orientation[1];
+                roll = orientation[2];
+
+                inclineGravity = mGravity.clone();
+
+                double norm_Of_g = Math.sqrt(inclineGravity[0] * inclineGravity[0] + inclineGravity[1] * inclineGravity[1] + inclineGravity[2] * inclineGravity[2]);
+
+                // Normalize the accelerometer vector
+                inclineGravity[0] = (float) (inclineGravity[0] / norm_Of_g);
+                inclineGravity[1] = (float) (inclineGravity[1] / norm_Of_g);
+                inclineGravity[2] = (float) (inclineGravity[2] / norm_Of_g);
+
+                //Checks if device is flat on groud or not
+                int inclination = (int) Math.round(Math.toDegrees(Math.acos(inclineGravity[2])));
+
+                Float objPitch = new Float(pitch);
+                Float objZero = new Float(0.0);
+                Float objZeroPointTwo = new Float(0.2);
+                Float objZeroPointTwoNegative = new Float(-0.2);
+
+                int objPitchZeroResult = objPitch.compareTo(objZero);
+                int objPitchZeroPointTwoResult = objZeroPointTwo.compareTo(objPitch);
+                int objPitchZeroPointTwoNegativeResult = objPitch.compareTo(objZeroPointTwoNegative);
+
+                //if (roll < 0 && ((objPitchZeroResult > 0 && objPitchZeroPointTwoResult > 0)
+                //        || (objPitchZeroResult < 0 && objPitchZeroPointTwoNegativeResult > 0)) && (inclination > 140 && inclination < 160))
+                if   (inclination > 30 && inclination < 40)
+                {
+                    return true;
+                }
+                else
+                {
+                    return false;
+                }
+            }
+        }
+
+        return false;
+    }
+
+
     @Override
     public void onResume() {
+        initListeners();
         super.onResume();
         // Add the following line to register the Session Manager Listener onResume
         mSensorManager.registerListener(mShakeDetector, mAccelerometer,	SensorManager.SENSOR_DELAY_UI);
     }
 
+
     @Override
     public void onPause() {
         // Add the following line to unregister the Sensor Manager onPause
+        mSensorManager.unregisterListener(this);
         mSensorManager.unregisterListener(mShakeDetector);
         super.onPause();
     }
@@ -191,6 +522,7 @@ public class GameViewActivity extends AppCompatActivity implements View.OnClickL
         // Though decrepted, this works. If you, my students, find the right function, let me know.
         button2.setBackground(pic);
         button1.setBackground(null);
+
         npg.swap(wr,wc);
     }
 
@@ -204,8 +536,17 @@ public class GameViewActivity extends AppCompatActivity implements View.OnClickL
     }
 
     public void reSet(View view) {
-        // Kabloey
+
         npg.reset();
+        redraw();
+
+    }
+
+
+    public void randomize(View view) {
+
+
+        npg.randomize(10);
         redraw();
 
     }
@@ -214,15 +555,17 @@ public class GameViewActivity extends AppCompatActivity implements View.OnClickL
     {
         for(int row=0; row<npg.SIZE; row++)
             for(int col=0; col<npg.SIZE; col++) {
-                if (row==0 &&col==0) buttons[row][col].setBackground(null);
+                if (npg.gamestate[row][col]==0) buttons[row][col].setBackground(null);
                 else {
-                    int suffix = row * npg.SIZE + col;
+                    //int suffix = row * npg.SIZE + col;
+                    int suffix = npg.gamestate[row][col];
                     String mDrawableName = "pieces_" + suffix;
                     int imageResource = getResources().getIdentifier(mDrawableName, "drawable", getPackageName());
                     Drawable pic = getResources().getDrawable(imageResource);
                     // Though decrepted, this works. If you, my students, find the right function, let me know.
                     buttons[row][col].setBackground(pic);
                 }
+                buttons[row][col].setText(String.valueOf(npg.gamestate[row][col]));
             }
 
     }
