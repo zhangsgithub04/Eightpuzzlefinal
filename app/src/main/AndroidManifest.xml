@@ -21,6 +21,8 @@
 
         <activity android:name=".GameViewActivity"
             android:screenOrientation="portrait"
+
+
             >
 
 
