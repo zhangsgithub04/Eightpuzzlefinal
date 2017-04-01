@@ -524,6 +524,7 @@ public class GameViewActivity extends AppCompatActivity implements View.OnClickL
         button1.setBackground(null);
 
         npg.swap(wr,wc);
+        redraw();
     }
 
     private boolean isadjacent(int r1, int c1, int r2, int c2)
